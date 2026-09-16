@@ -1,0 +1,32 @@
+# 密钥配置（绝对不要上传！）
+config.env
+*.env
+!config.env.example
+
+# 本地调试脚本（容易把密钥写死在里面）
+test_*.py
+_probe*.py
+*.bak_*
+
+# 语音缓存
+# 注意：只忽略缓存文件本身，目录必须提交（用 .gitkeep 占位）。
+# 如果写成 audio/，整个目录会被忽略，加上 GitHub 不跟踪空目录，
+# 部署到云端后 audio/ 根本不存在 → 语音写文件直接崩 → 「没有声音」。
+audio/*
+!audio/.gitkeep
+
+# 录制与构建的中间产物
+_rec/
+_giftest/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 隧道工具（体积大，各人自己下载即可）
+cloudflared.exe
+ngrok.exe
+
+# 系统文件
+.DS_Store
+Thumbs.db
