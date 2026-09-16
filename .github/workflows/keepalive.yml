@@ -1,0 +1,56 @@
+name: Keep Alive
+
+# 作用：让免费云实例保持常驻，消除冷启动等待。
+# 说明：这只是「备用」方案。GitHub 的定时任务不太守时（实测可能延迟 2~4 小时，
+#       甚至被丢弃），所以主力应该是专门的监控服务（如 UptimeRobot，每 5 分钟一次）。
+#
+# 用法：把下面的 YOUR-APP 换成你自己的应用地址；改完放在仓库的
+#       .github/workflows/ 目录下即可。公开仓库的 Actions 额度是免费的。
+
+on:
+  schedule:
+    # 错峰安排在奇数分钟，避开整点和 5 的倍数分的拥堵时段
+    - cron: '2-59/10 * * * *'
+    - cron: '7-59/10 * * * *'
+    # 每月 1 号刷新一次仓库活跃度，防止 GitHub 因 60 天无活动而停用定时任务
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Ping health endpoint
+    if: github.event_name != 'schedule' || github.event.schedule != '0 3 1 * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wake up free instance
+        run: |
+          URL="https://YOUR-APP.onrender.com/api/health"
+          for i in 1 2 3 4; do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 55 "$URL") || CODE=000
+            echo "attempt $i -> HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              echo "instance is awake"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "keep-alive ping failed"
+          exit 1
+
+  touch-activity:
+    name: Monthly activity refresh
+    if: github.event.schedule == '0 3 1 * *'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Commit heartbeat timestamp
+        run: |
+          date -u +'%Y-%m-%dT%H:%M:%SZ' > .keepalive
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .keepalive
+          git commit -m "chore: keep-alive heartbeat [skip ci]" || echo "nothing to commit"
+          git push
